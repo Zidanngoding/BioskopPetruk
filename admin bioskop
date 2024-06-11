@@ -1,1 +1,124 @@
+#include <iostream>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+struct Movie {
+    string title;
+    string showtime;
+    int ticketPrice;
+};
+
+struct Admin {
+    string username;
+    string password;
+};
+
+bool loginAdmin(Admin admin, string username, string password) {
+    if (admin.username == username && admin.password == password) {
+        return true;
+    }
+    return false;
+}
+
+void addMovieSchedule(vector<Movie>& movieSchedule, Movie newMovie) {
+    movieSchedule.push_back(newMovie);
+    cout << "Movie schedule added successfully!" << endl;
+}
+
+void updateMovieSchedule(vector<Movie>& movieSchedule, int index, Movie newMovie) {
+    if (index < movieSchedule.size()) {
+        movieSchedule[index] = newMovie;
+        cout << "Movie schedule updated successfully!" << endl;
+    } else {
+        movieSchedule.push_back(newMovie);
+        cout << "New movie schedule added successfully!" << endl;
+    }
+}
+
+void displayMovieSchedule(vector<Movie> movieSchedule) {
+    cout << "Movie Schedule:" << endl;
+    for (int i = 0; i < movieSchedule.size(); i++) {
+        cout << "Title: " << movieSchedule[i].title << endl;
+        cout << "Showtime: " << movieSchedule[i].showtime << endl;
+        cout << "Ticket Price: " << movieSchedule[i].ticketPrice << endl;
+        cout << "------------------------" << endl;
+    }
+}
+
+int main() {
+ 
+    Admin admin;
+    admin.username = "admin";
+    admin.password = "password";
+
+    vector<Movie> movieSchedule;
+
+    while (true) {
+        cout << "Admin Menu:" << endl;
+        cout << "1. Login" << endl;
+        cout << "2. Exit" << endl;
+        int choice;
+        cin >> choice;
+
+        if (choice == 1) {
+            string username, password;
+            cout << "Enter username: ";
+            cin >> username;
+            cout << "Enter password: ";
+            cin >> password;
+
+            if (loginAdmin(admin, username, password)) {
+                cout << "Login successful!" << endl;
+
+                while (true) {
+                    cout << "Maintenance Menu:" << endl;
+                    cout << "1. Add Movie Schedule" << endl;
+                    cout << "2. Update Movie Schedule" << endl;
+                    cout << "3. Display Movie Schedule" << endl;
+                    cout << "4. Exit" << endl;
+                    int maintenanceChoice;
+                    cin >> maintenanceChoice;
+
+                    if (maintenanceChoice == 1) {
+                        Movie newMovie;
+                        cout << "Enter movie title: ";
+                        cin >> newMovie.title;
+                        cout << "Enter showtime: ";
+                        cin >> newMovie.showtime;
+                        cout << "Enter ticket price: ";
+                        cin >> newMovie.ticketPrice;
+
+                        addMovieSchedule(movieSchedule, newMovie);
+                    } else if (maintenanceChoice == 2) {
+                        int index;
+                        cout << "Enter index of movie schedule to update: ";
+                        cin >> index;
+
+                        Movie newMovie;
+                        cout << "Enter movie title: ";
+                        cin >> newMovie.title;
+                        cout << "Enter showtime: ";
+                        cin >> newMovie.showtime;
+                        cout << "Enter ticket price: ";
+                        cin >> newMovie.ticketPrice;
+
+                        updateMovieSchedule(movieSchedule, index, newMovie);
+                    } else if (maintenanceChoice == 3) {
+                        displayMovieSchedule(movieSchedule);
+                    } else if (maintenanceChoice == 4) {
+                        break;
+                    }
+                }
+            } else {
+                cout << "Login failed!" << endl;
+            }
+        } else if (choice == 2) {
+            break;
+        }
+    }
+
+    return 0;
+}
 
