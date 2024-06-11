@@ -1,1 +1,431 @@
-tes
+#include <iostream>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <iomanip>
+#include <cstdlib> 
+#include <ctime>   
+#include <termios.h>
+#include <unistd.h>
+
+using namespace std;
+
+const int LINE_WIDTH = 40;
+
+class User {
+public:
+    string username;
+    string password;
+
+    User(string uname, string pwd) : username(uname), password(pwd) {}
+};
+
+class Movie {
+public:
+    string title;
+    vector<string> schedules;
+
+    Movie(string combined) {
+        size_t delimiterPos = combined.find(',');
+        if (delimiterPos != string::npos) {
+            title = combined.substr(0, delimiterPos);
+            string schedulesStr = combined.substr(delimiterPos + 1);
+            size_t pos = 0;
+            while ((pos = schedulesStr.find(',')) != string::npos) {
+                schedules.push_back(schedulesStr.substr(0, pos));
+                schedulesStr.erase(0, pos + 1);
+            }
+            schedules.push_back(schedulesStr);
+        } else {
+            title = combined;
+            schedules = {""};
+        }
+    }
+};
+
+class Ticket {
+public:
+    string movieTitle;
+    string schedule;
+    int seatNumber;
+    string dayOfWeek;
+
+    Ticket(string mTitle, string sch, int seat, string day) : movieTitle(mTitle), schedule(sch), seatNumber(seat), dayOfWeek(day) {}
+};
+
+vector<User> users;
+vector<Movie> movies;
+unordered_map<string, vector<bool>> seats;
+unordered_map<string, vector<Ticket>> userTickets;
+
+void clearScreen() {
+#if defined(_WIN32) || defined(_WIN64)
+    system("CLS");
+#else
+    system("clear");
+#endif
+}
+
+void centerText(const string& text) {
+    int padding = (LINE_WIDTH - text.size()) / 2;
+    cout << setw(padding + text.size()) << text << setw(padding) << "" << endl;
+}
+
+void printHeader(const string& title) {
+    centerText("========================================");
+    centerText(title);
+    centerText("========================================");
+}
+
+void printFooter() {
+    centerText("========================================");
+}
+
+void registerUser() {
+    clearScreen();
+    printHeader("Register User");
+    string username, password;
+    cout << "Enter username: ";
+    cin >> username;
+    cout << "Enter password: ";
+    cin >> password;
+    users.push_back(User(username, password));
+    cout << "User registered successfully!" << endl;
+}
+
+bool loginUser(string& username) {
+    clearScreen();
+    printHeader("Login User");
+    string password;
+    cout << "Enter username: ";
+    cin >> username;
+    cout << "Enter password: ";
+    cin >> password;
+    for (User& user : users) {
+        if (user.username == username && user.password == password) {
+            cout << "Login successful!" << endl;
+            return true;
+        }
+    }
+    cout << "Invalid username or password!" << endl;
+    return false;
+}
+
+void addMovie(const string& title, const vector<string>& schedules) {
+    string combined = title;
+    for (const string& schedule : schedules) {
+        combined += "," + schedule;
+    }
+    movies.push_back(Movie(combined));
+    for (const string& schedule : schedules) {
+        seats[title + "," + schedule] = vector<bool>(100, false);  
+    }
+}
+
+void generateRandomSchedule(vector<string>& schedules) {
+    for (int i = 0; i < 3; ++i) {  
+        int hour = rand() % 15 + 7;  
+        int minute = rand() % 60;    
+        schedules.push_back(to_string(hour) + ":" + (minute < 10 ? "0" : "") + to_string(minute));
+    }
+}
+
+void generateRandomMovies() {
+    vector<string> movieTitles = {"Interstellar", "Se7en", "Transformers", "Zodiac", "Joker 2", "Deadpool", "Oppenheimer"};
+    for (const string& title : movieTitles) {
+        vector<string> schedules;
+        generateRandomSchedule(schedules);
+        addMovie(title, schedules);
+    }
+}
+
+string getDayOfWeek(int day) {
+    switch (day) {
+        case 0: return "Sunday";
+        case 1: return "Monday";
+        case 2: return "Tuesday";
+        case 3: return "Wednesday";
+        case 4: return "Thursday";
+        case 5: return "Friday";
+        case 6: return "Saturday";
+        default: return "";
+    }
+}
+
+int getTicketPrice(int day) {
+    switch (day) {
+        case 0: return 40000; 
+        case 6: return 40000; 
+        default: return 35000; 
+    }
+}
+
+int chooseDay() {
+    int choice;
+    while (true) {
+        cout << "Choose day (1-7, 0 to go back):\n";
+        cout << "0. Back\n";
+        cout << "1. Sunday\n";
+        cout << "2. Monday\n";
+        cout << "3. Tuesday\n";
+        cout << "4. Wednesday\n";
+        cout << "5. Thursday\n";
+        cout << "6. Friday\n";
+        cout << "7. Saturday\n";
+        cout << "Enter choice: ";
+        cin >> choice;
+        if (choice >= 0 && choice <= 7) {
+            return choice - 1;
+        } else {
+            cout << "Invalid choice!\n";
+        }
+    }
+}
+
+int chooseSchedule(const vector<string>& schedules) {
+    int choice;
+    while (true) {
+        cout << "Available schedules (0 to go back):\n";
+        cout << "0. Back\n";
+        for (size_t i = 0; i < schedules.size(); ++i) {
+            cout << i + 1 << ". " << schedules[i] << "\n";
+        }
+        cout << "Choose schedule (1-" << schedules.size() << "): ";
+        cin >> choice;
+        if (choice == 0) {
+            return -1;
+        } else if (choice >= 1 && choice <= schedules.size()) {
+            return choice - 1;
+        } else {
+            cout << "Invalid choice!\n";
+        }
+    }
+}
+
+void displayMovieDetails(const Movie& movie) {
+    int dayChoice = chooseDay();
+    if (dayChoice == -1) return;
+    string dayOfWeek = getDayOfWeek(dayChoice);
+    int scheduleChoice = chooseSchedule(movie.schedules);
+    if (scheduleChoice == -1) return;
+    cout << "Selected Movie: " << movie.title << "\n";
+    cout << "Day: " << dayOfWeek << "\n";
+    cout << "Schedule: " << movie.schedules[scheduleChoice] << "\n";
+}
+
+void displayMovies() {
+    while (true) {
+        clearScreen();
+        printHeader("Movie List");
+        for (size_t i = 0; i < movies.size(); ++i) {
+            cout << i + 1 << ". " << movies[i].title << "\n";
+        }
+        printFooter();
+        cout << "Choose a movie number to view details (0 to go back): ";
+        int movieChoice;
+        cin >> movieChoice;
+        if (movieChoice == 0) return;
+        if (movieChoice < 1 || movieChoice > movies.size()) {
+            cout << "Invalid choice!" << endl;
+        } else {
+            displayMovieDetails(movies[movieChoice - 1]);
+        }
+    }
+}
+
+void bookTicket(const string& username) {
+    clearScreen();
+    int movieChoice, seatNumber, numTickets;
+
+    printHeader("Book Ticket");
+    for (size_t i = 0; i < movies.size(); ++i) {
+        cout << i + 1 << ". " << movies[i].title << "\n";
+    }
+    printFooter();
+
+    cout << "Choose a movie (number, 0 to go back): ";
+    cin >> movieChoice;
+    if (movieChoice == 0) return;
+    if (movieChoice < 1 || movieChoice > movies.size()) {
+        cout << "Invalid choice!" << endl;
+        return;
+    }
+    Movie& selectedMovie = movies[movieChoice - 1];
+    int dayChoice = chooseDay();
+    if (dayChoice == -1) return;
+    string dayOfWeek = getDayOfWeek(dayChoice);
+    int ticketPrice = getTicketPrice(dayChoice);
+    int scheduleChoice = chooseSchedule(selectedMovie.schedules);
+    if (scheduleChoice == -1) return;
+    string selectedSchedule = selectedMovie.schedules[scheduleChoice];
+
+    cout << "Enter the number of tickets you want to book: ";
+    cin >> numTickets;
+    vector<int> selectedSeats;
+    for (int i = 0; i < numTickets; ++i) {
+        cout << "Choose seat number for ticket " << i + 1 << " (1-100): ";
+        cin >> seatNumber;
+        if (seatNumber < 1 || seatNumber > 100 || seats[selectedMovie.title + "," + selectedSchedule][seatNumber - 1]) {
+            cout << "Invalid seat number or seat already booked!" << endl;
+            --i; // Ask for the seat number again
+        } else {
+            selectedSeats.push_back(seatNumber);
+        }
+    }
+
+    // Display booking details
+    cout << "Booking Details:\n";
+    cout << "Movie: " << selectedMovie.title << "\n";
+    cout << "Schedule: " << selectedSchedule << "\n";
+    cout << "Day: " << dayOfWeek << "\n";
+    cout << "Number of Tickets: " << numTickets << "\n";
+    cout << "Seats: ";
+    for (int seat : selectedSeats) {
+        cout << seat << " ";
+    }
+    cout << "\nTotal Price: " << numTickets * ticketPrice << "\n";
+    cout << "Confirm booking? (Y/N): ";
+    char confirm;
+    cin >> confirm;
+    if (confirm == 'Y' || confirm == 'y') {
+        for (int seat : selectedSeats) {
+            seats[selectedMovie.title + "," + selectedSchedule][seat - 1] = true;
+            userTickets[username].push_back(Ticket(selectedMovie.title, selectedSchedule, seat, dayOfWeek));
+        }
+        cout << "Tickets booked successfully!" << endl;
+    } else {
+        cout << "Booking cancelled." << endl;
+    }
+}
+
+void viewTickets(const string& username) {
+    clearScreen();
+    printHeader("Your Tickets");
+    if (userTickets.find(username) != userTickets.end()) {
+        for (Ticket& ticket : userTickets[username]) {
+            cout << "Movie: " << ticket.movieTitle << ", Schedule: " << ticket.schedule << ", Seat: " << ticket.seatNumber << ", Day: " << ticket.dayOfWeek << "\n";
+        }
+    } else {
+        cout << "No tickets booked." << endl;
+    }
+    printFooter();
+    cout << "Press Enter to return to the main menu...";
+    cin.ignore();
+    cin.get();
+}
+
+char getch() {
+    char buf = 0;
+    struct termios old = {0};
+    if (tcgetattr(0, &old) < 0)
+        perror("tcsetattr()");
+    old.c_lflag &= ~ICANON;
+    old.c_lflag &= ~ECHO;
+    old.c_cc[VMIN] = 1;
+    old.c_cc[VTIME] = 0;
+    if (tcsetattr(0, TCSANOW, &old) < 0)
+        perror("tcsetattr ICANON");
+    if (read(0, &buf, 1) < 0)
+        perror("read()");
+    old.c_lflag |= ICANON;
+    old.c_lflag |= ECHO;
+    if (tcsetattr(0, TCSADRAIN, &old) < 0)
+        perror("tcsetattr ~ICANON");
+    return buf;
+}
+
+void displayInitialMenu(string& username) {
+    int choice = 0;
+    while (true) {
+        clearScreen();
+        printHeader("Welcome");
+        for (int i = 0; i < 3; ++i) {
+            if (i == choice) {
+                cout << "> ";
+            } else {
+                cout << "  ";
+            }
+            cout << i + 1 << ". " << (i == 0 ? "Register" : i == 1 ? "Login" : "Exit") << endl;
+        }
+        printFooter();
+
+        char input = getch();
+        if (input == '\033') { 
+            getch(); 
+            switch(getch()) {
+                case 'A':
+                    choice = (choice - 1 + 3) % 3;
+                    break;
+                case 'B':
+                    choice = (choice + 1) % 3;
+                    break;
+            }
+        } else if (input == '\n') {
+            if (choice == 0) {
+                registerUser();
+            } else if (choice == 1) {
+                if (loginUser(username)) {
+                    return;
+                }
+            } else if (choice == 2) {
+                cout << "Exiting..." << endl;
+                exit(0);
+            }
+        }
+    }
+}
+
+void displayMainMenu(const string& username) {
+    int choice = 0;
+    while (true) {
+        clearScreen();
+        printHeader("Main Menu");
+        for (int i = 0; i < 4; ++i) {
+            if (i == choice) {
+                cout << "> ";
+            } else {
+                cout << "  ";
+            }
+            cout << i + 1 << ". " << (i == 0 ? "View Movie List" : i == 1 ? "Book Ticket" : i == 2 ? "View Tickets" : "Logout") << endl;
+        }
+        printFooter();
+
+        char input = getch();
+        if (input == '\033') { 
+            getch(); 
+            switch(getch()) { 
+                case 'A':
+                    choice = (choice - 1 + 4) % 4;
+                    break;
+                case 'B':
+                    choice = (choice + 1) % 4;
+                    break;
+            }
+        } else if (input == '\n') {
+            switch (choice) {
+                case 0:
+                    displayMovies();
+                    break;
+                case 1:
+                    bookTicket(username);
+                    break;
+                case 2:
+                    viewTickets(username);
+                    break;
+                case 3:
+                    return; 
+            }
+        }
+    }
+}
+
+int main() {
+    srand(time(0)); 
+    generateRandomMovies(); 
+    while (true) {
+        string username;
+        displayInitialMenu(username);
+        displayMainMenu(username);
+    }
+    return 0;
+}
